@@ -1,3 +1,4 @@
+import dateutil.parser
 import requests
 import platform
 from numbers import Number
@@ -26,7 +27,7 @@ def codestr(code):
     return HTTP_CODES.get(code, 'UNKNOWN')
 
 
-File = namedtuple('File', ['name', 'size', 'mtime', 'ctime', 'contenttype'])
+File = namedtuple('File', ['name', 'size', 'mtime', 'ctime', 'contenttype', 'mtimedate', 'ctimedate'])
 
 
 def prop(elem, name, default=None):
@@ -35,12 +36,26 @@ def prop(elem, name, default=None):
 
 
 def elem2file(elem):
+    def _try_parse_date(date):
+        try:
+            return dateutil.parser.parse(date)
+        except ValueError:
+            # Cannot parse date. Do not bail here, we will just leave it
+            # set to None. One can still access the raw (unparsed) date
+            # using the "mtime" and "ctime" attributes of the File namedtuple.
+            return None
+
+    mtime = prop(elem, 'getlastmodified', '')
+    ctime = prop(elem, 'creationdate', '')
+
     return File(
         prop(elem, 'href'),
         int(prop(elem, 'getcontentlength', 0)),
-        prop(elem, 'getlastmodified', ''),
-        prop(elem, 'creationdate', ''),
+        mtime,
+        ctime,
         prop(elem, 'getcontenttype', ''),
+        _try_parse_date(mtime),
+        _try_parse_date(ctime)
     )
 
 
