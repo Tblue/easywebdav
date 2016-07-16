@@ -1,3 +1,4 @@
+import re
 import requests
 import platform
 from numbers import Number
@@ -14,6 +15,7 @@ else:
     from urllib.parse import urlparse
 
 DOWNLOAD_CHUNK_SIZE_BYTES = 1 * 1024 * 1024
+NAMESPACE_RE = re.compile(r'^\{(?P<namespace>.*)\}(?P<tag>.+)$')
 
 class WebdavException(Exception):
     pass
@@ -26,7 +28,7 @@ def codestr(code):
     return HTTP_CODES.get(code, 'UNKNOWN')
 
 
-File = namedtuple('File', ['name', 'size', 'mtime', 'ctime', 'contenttype'])
+File = namedtuple('File', ['name', 'size', 'mtime', 'ctime', 'contenttype', 'resourcetypes'])
 
 
 def prop(elem, name, default=None):
@@ -35,12 +37,21 @@ def prop(elem, name, default=None):
 
 
 def elem2file(elem):
+    resource_types = []
+    # WebDAV spec says the "resourcetype" property MUST be present (it may be empty), but of
+    # course, there are servers that just completely omit it... Handle that.
+    for resource_type in elem.find('{DAV:}propstat/{DAV:}prop/{DAV:}resourcetype') or []:
+        resource_types.append(
+            NAMESPACE_RE.sub(r'\g<namespace>\g<tag>', resource_type.tag)
+        )
+
     return File(
         prop(elem, 'href'),
         int(prop(elem, 'getcontentlength', 0)),
         prop(elem, 'getlastmodified', ''),
         prop(elem, 'creationdate', ''),
         prop(elem, 'getcontenttype', ''),
+        frozenset(resource_types)
     )
 
 
