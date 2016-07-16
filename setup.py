@@ -23,6 +23,7 @@ properties = dict(
     packages=find_packages(exclude=["tests"]),
     data_files = [],
     install_requires=[
+        "python-dateutil ~= 2.5",
         "requests",
         ],
     entry_points=dict(
