@@ -15,8 +15,11 @@ else:
     from http.client import responses as HTTP_CODES
     from urllib.parse import urlparse
 
+
+_NAMESPACE_RE = re.compile(r'^\{(?P<namespace>.*)\}')
+
 DOWNLOAD_CHUNK_SIZE_BYTES = 1 * 1024 * 1024
-NAMESPACE_RE = re.compile(r'^\{(?P<namespace>.*)\}(?P<tag>.+)$')
+
 
 class WebdavException(Exception):
     pass
@@ -54,13 +57,18 @@ def elem2file(elem):
     mtime = prop(elem, 'getlastmodified', '').strip()
     ctime = prop(elem, 'creationdate', '').strip()
     
-    resource_types = []
-    # WebDAV spec says the "resourcetype" property MUST be present (it may be empty), but of
-    # course, there are servers that just completely omit it... Handle that.
-    for resource_type in elem.find('{DAV:}propstat/{DAV:}prop/{DAV:}resourcetype') or []:
-        resource_types.append(
-            NAMESPACE_RE.sub(r'\g<namespace>\g<tag>', resource_type.tag)
-        )
+    resource_types = frozenset(
+        # ElementTree gives us tags like "{namespace}tagname", e. g.
+        # "{DAV:}collection". Drop the curly braces so that we get a
+        # nice string like "DAV:collection" instead (that format is
+        # used in the WebDAV RFC, too).
+        _NAMESPACE_RE.sub(r'\g<namespace>', res_type.tag)
+        for res_type in
+            # WebDAV RFC says the "resourcetype" property MUST be present (it may be
+            # empty), but of course, there are servers that just completely omit it...
+            # Handle that.
+            elem.find('{DAV:}propstat/{DAV:}prop/{DAV:}resourcetype') or []
+    )
 
     return File(
         prop(elem, 'href'),
@@ -70,7 +78,7 @@ def elem2file(elem):
         prop(elem, 'getcontenttype', ''),
         _try_parse_date(mtime),
         _try_parse_date(ctime),
-        frozenset(resource_types)
+        resource_types
     )
 
 
