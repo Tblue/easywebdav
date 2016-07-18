@@ -36,8 +36,7 @@ File = namedtuple('File', ['name', 'size', 'mtime', 'ctime', 'contenttype', 'mti
 
 
 def prop(elem, name, default=None):
-    child = elem.find('.//{DAV:}' + name)
-    return default if child is None else child.text
+    return elem.findtext('.//{DAV:}' + name, default)
 
 
 def elem2file(elem):
