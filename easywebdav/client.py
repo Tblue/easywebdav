@@ -39,6 +39,10 @@ def prop(elem, name, default=None):
 
 def elem2file(elem):
     def _try_parse_date(date):
+        if not date:
+            # Nothing to parse.
+            return None
+
         try:
             return dateutil.parser.parse(date)
         except ValueError:
@@ -47,8 +51,8 @@ def elem2file(elem):
             # using the "mtime" and "ctime" attributes of the File namedtuple.
             return None
 
-    mtime = prop(elem, 'getlastmodified', '')
-    ctime = prop(elem, 'creationdate', '')
+    mtime = prop(elem, 'getlastmodified', '').strip()
+    ctime = prop(elem, 'creationdate', '').strip()
     
     resource_types = []
     # WebDAV spec says the "resourcetype" property MUST be present (it may be empty), but of
